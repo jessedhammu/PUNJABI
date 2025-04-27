@@ -28,6 +28,15 @@ if 'word' not in df.columns:
     print(f"Error: 'word' column not found in {INPUT_CSV_PATH}.")
     exit(1)
 
+# Initialize the output CSV with headers
+try:
+    # Create an empty DataFrame with the correct columns
+    pd.DataFrame(columns=['word', 'morph_result']).to_csv(OUTPUT_CSV_PATH, index=False, encoding='utf-8-sig')
+    print(f"Initialized output CSV at {OUTPUT_CSV_PATH}")
+except Exception as e:
+    print(f"Error initializing output CSV at {OUTPUT_CSV_PATH}: {str(e)}")
+    exit(1)
+
 # Initialize Selenium WebDriver for Firefox
 firefox_options = Options()
 # Set Firefox profile to handle SSL certificate errors
@@ -54,9 +63,6 @@ except WebDriverException as e:
 
 # Wait for the page to load
 time.sleep(2)
-
-# Prepare a list to store results
-results = []
 
 try:
     # Click the hyperlink with id="linkbtnMorph" and href="#Morph"
@@ -116,12 +122,17 @@ try:
             result_text = results_area.get_attribute('value').strip()
             print(f"Retrieved result for '{word}': {result_text}")
 
-            # Store the word and its result
-            results.append({'word': word, 'morph_result': result_text})
+            # Save the result immediately to the output CSV
+            result_row = pd.DataFrame([{'word': word, 'morph_result': result_text}])
+            result_row.to_csv(OUTPUT_CSV_PATH, mode='a', header=False, index=False, encoding='utf-8-sig')
+            print(f"Saved result for '{word}' to {OUTPUT_CSV_PATH}")
 
         except (TimeoutException, NoSuchElementException) as e:
             print(f"Error processing word '{word}': {str(e)}")
-            results.append({'word': word, 'morph_result': f'Error: {str(e)}'})
+            # Save the error to the CSV
+            error_row = pd.DataFrame([{'word': word, 'morph_result': f'Error: {str(e)}'}])
+            error_row.to_csv(OUTPUT_CSV_PATH, mode='a', header=False, index=False, encoding='utf-8-sig')
+            print(f"Saved error for '{word}' to {OUTPUT_CSV_PATH}")
 
 except Exception as e:
     print(f"Unexpected error during processing: {str(e)}")
@@ -130,12 +141,3 @@ finally:
     # Close the browser
     driver.quit()
     print("Browser closed.")
-
-# Save results to a new CSV file
-try:
-    print(f"Results collected: {results}")
-    results_df = pd.DataFrame(results)
-    results_df.to_csv(OUTPUT_CSV_PATH, index=False, encoding='utf-8-sig')
-    print(f"Results saved to {OUTPUT_CSV_PATH}. Number of rows: {len(results_df)}")
-except Exception as e:
-    print(f"Error saving results to {OUTPUT_CSV_PATH}: {str(e)}")
